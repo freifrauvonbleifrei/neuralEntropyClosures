@@ -3,18 +3,16 @@ from optparse import OptionParser
 from src.networks.configmodel import init_neural_closure
 
 import tensorflow as tf
-from tensorflow.keras.layers import Lambda
 from icecream import ic
+import subprocess
 
 
-def main(legacy: bool):
+def main(legacy: bool, folder_name: str) -> None:
     nw_width = 100
     nw_depth = 3
     spatial_dim = 2
-    poly_degree = 2
-    folder_name = "../dalotia_evaluation/build_new/benchmarks/NeuralClosure/Monomial_Mk11_M3_2D_gamma3/"
-    # --- M1 1D synthetic tests  ----
-    if options.legacy:
+    poly_degree = 3
+    if legacy:
         # load network
         neural_closure = init_neural_closure(
             network_mk=11,
@@ -29,7 +27,6 @@ def main(legacy: bool):
         neural_closure.create_model()
         ### Need to load this model as legacy code
         print("Load model in legacy mode. Model was created using tf 2.2.0")
-        legacy_model = True
         imported = tf.keras.models.load_model(folder_name + "best_model")
         neural_closure.model_legacy = imported
         test_model = neural_closure.model_legacy
@@ -56,13 +53,12 @@ def main(legacy: bool):
     )
 
 
-def build_new_legacy_model_for_debug_output():
+def build_new_legacy_model_for_debug_output(folder_name: str) -> None:
     # generate a new untrained model
     nw_width = 100
     nw_depth = 3
     spatial_dim = 2
-    poly_degree = 2
-    folder_name = "../dalotia_evaluation/build_new/benchmarks/NeuralClosure/Monomial_Mk11_M3_2D_gamma3/"
+    poly_degree = 3
     model = init_neural_closure(
         network_mk=11,
         poly_degree=poly_degree,
@@ -74,6 +70,10 @@ def build_new_legacy_model_for_debug_output():
         normalized=True,
     )
     model.create_model()
+    kitrt_servingSize = 12920
+    num_input_channels = 9
+    training_data = np.zeros((kitrt_servingSize, num_input_channels), dtype=np.float32)
+    model.model(training_data)
     # save to new location
     model.model.save(folder_name + "best_model_")
 
@@ -94,14 +94,12 @@ if __name__ == "__main__":
     (options, args) = parser.parse_args()
     options.legacy = bool(int(options.legacy))
 
-    build_new_legacy_model_for_debug_output()
-    main(legacy=options.legacy)
+    folder_name = "../dalotia_evaluation/build_new/benchmarks/NeuralClosure/Monomial_Mk11_M3_2D_gamma3/"
 
-## currently error:
-#   File "/scr/pollinta/neuralEntropyClosures/forward_pass.py", line 86, in build_new_legacy_model_for_debug_output
-#     model.model.save(folder_name + "best_model_")
-#   File "/scr/pollinta/neuralEntropyClosures/venv9/lib/python3.9/site-packages/keras/src/utils/traceback_utils.py", line 70, in error_handler
-#     raise e.with_traceback(filtered_tb) from None
-#   File "/scr/pollinta/neuralEntropyClosures/venv9/lib/python3.9/site-packages/keras/src/saving/legacy/saving_utils.py", line 97, in raise_model_input_error
-#     raise ValueError(
-# ValueError: Model <src.networks.entropymodels.SobolevModel object at 0x7faf6af7d550> cannot be saved either because the input shape is not available or because the forward pass of the model is not defined.To define a forward pass, please override `Model.call()`. To specify an input shape, either call `build(input_shape)` directly, or call the model on actual data using `Model()`, `Model.fit()`, or `Model.predict()`. If you have a custom training step, please make sure to invoke the forward pass in train step through `Model.__call__`, i.e. `model(inputs)`, as opposed to `model.call()`.
+    build_new_legacy_model_for_debug_output(folder_name)
+    # move model files from the best_model_ to best_model ; omit variables folder
+    subprocess.run(
+        ["mv", folder_name + "best_model_/saved_model.pb", folder_name + "best_model/saved_model.pb"],
+        check=True,
+    )
+    main(legacy=options.legacy, folder_name=folder_name)
