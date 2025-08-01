@@ -30,6 +30,8 @@ def main(legacy: bool, folder_name: str) -> None:
         imported = tf.keras.models.load_model(folder_name + "best_model")
         neural_closure.model_legacy = imported
         test_model = neural_closure.model_legacy
+        # write again to file
+        test_model.save("./best_model")
     else:
         neural_closure = init_neural_closure(network_mk=11, poly_degree=poly_degree, spatial_dim=spatial_dim,
                                              folder_name="../" + folder_name,
@@ -38,6 +40,8 @@ def main(legacy: bool, folder_name: str) -> None:
                                              scale_active=True)
         neural_closure.load_model()
         test_model = neural_closure.model
+
+    test_model.summary()
 
     # read binary float32 input data and convert to tensor
     # load data
@@ -86,17 +90,10 @@ def build_new_legacy_model_for_debug_output(folder_name: str) -> None:
 
 if __name__ == "__main__":
     folder_name = "../dalotia_evaluation/build_new/benchmarks/NeuralClosure/Monomial_Mk11_M3_2D_gamma3/"
-
-    build_new_legacy_model_for_debug_output(folder_name)
-    ic("moving model files to best_model")
-    # move model files from the best_model_ to best_model ; omit variables folder
-    subprocess.run(
-        ["mv", folder_name + "best_model_/saved_model.pb", folder_name + "best_model/saved_model.pb"],
-        check=True,
-    )
-    subprocess.run(
-        ["mv", folder_name + "best_model_/keras_metadata.pb", folder_name + "best_model/keras_metadata.pb"],
-        check=True,
-    )
-    ic("trying to load model")
+    ic("trying to save legacy model")
+    main(legacy=True, folder_name=folder_name)
+    
+    folder_name = "./"
+    ic("trying to load non-legacy model")
     main(legacy=False, folder_name=folder_name)
+
