@@ -1,14 +1,12 @@
 import numpy as np
-from optparse import OptionParser
 from src.networks.configmodel import init_neural_closure
 
 import tensorflow as tf
 from icecream import ic
-import subprocess
 
 
 def main(legacy: bool, folder_name: str) -> None:
-    nw_width = 100
+    nw_width = 300
     nw_depth = 3
     spatial_dim = 2
     poly_degree = 3
@@ -23,6 +21,11 @@ def main(legacy: bool, folder_name: str) -> None:
             nw_width=nw_width,
             nw_depth=nw_depth,
             normalized=True,
+            input_decorrelation=True,
+            basis="spherical_harmonics",
+            scale_active=False,
+            gamma_lvl=2,
+            rotated=False,
         )
         neural_closure.create_model()
         ### Need to load this model as legacy code
@@ -33,18 +36,27 @@ def main(legacy: bool, folder_name: str) -> None:
         # write again to file
         test_model.save("./best_model")
     else:
-        neural_closure = init_neural_closure(network_mk=11, poly_degree=poly_degree, spatial_dim=spatial_dim,
-                                             folder_name="../" + folder_name,
-                                             loss_combination=2, nw_width=nw_width, nw_depth=nw_depth,
-                                             normalized=True, input_decorrelation=True,
-                                             scale_active=True)
+        neural_closure = init_neural_closure(
+            network_mk=11,
+            poly_degree=poly_degree,
+            spatial_dim=spatial_dim,
+            folder_name="../" + folder_name,
+            loss_combination=2,
+            nw_width=nw_width,
+            nw_depth=nw_depth,
+            normalized=True,
+            input_decorrelation=True,
+            basis="spherical_harmonics",
+            scale_active=False,
+            gamma_lvl=2,
+            rotated=False,
+        )
         neural_closure.load_model()
         test_model = neural_closure.model
 
     test_model.summary()
 
     # read binary float32 input data and convert to tensor
-    # load data
     kitrt_servingSize = 12920
     num_input_channels = 9
     u = np.fromfile(
@@ -55,12 +67,14 @@ def main(legacy: bool, folder_name: str) -> None:
     input_tensor = tf.convert_to_tensor(u, dtype=tf.float32)
 
     _, alpha, _ = ic(test_model(input_tensor))
-    assert alpha.shape == (kitrt_servingSize, num_input_channels), (
-        "Output shape mismatch"
-    )
-    assert alpha[0][0] == -0.6211774349212646, (
-        "First element should be -0.6211774349212646, but is {}".format(alpha[0][0])
-    )
+    assert alpha.shape == (
+        kitrt_servingSize,
+        num_input_channels,
+    ), "Output shape mismatch"
+    assert (
+        alpha[0][0] == -1.3182921409606934
+    ), "First element should be -0.6211774349212646, but is {}".format(alpha[0][0])
+    test_model.core_model.summary()
 
 
 def build_new_legacy_model_for_debug_output(folder_name: str) -> None:
@@ -89,11 +103,10 @@ def build_new_legacy_model_for_debug_output(folder_name: str) -> None:
 
 
 if __name__ == "__main__":
-    folder_name = "../dalotia_evaluation/build_new/benchmarks/NeuralClosure/Monomial_Mk11_M3_2D_gamma3/"
+    folder_name = "../dalotia_evaluation/build_new/benchmarks/NeuralClosure/Harmonic_Mk11_M3_2D_gamma2/"
     ic("trying to save legacy model")
     main(legacy=True, folder_name=folder_name)
-    
+
     folder_name = "./"
     ic("trying to load non-legacy model")
     main(legacy=False, folder_name=folder_name)
-
